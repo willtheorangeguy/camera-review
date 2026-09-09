@@ -138,10 +138,11 @@ Source copying does not require the share to permit timestamp changes. FFmpeg re
 native argument-array paths, while fast concat extraction translates drive-letter and UNC
 paths into explicit file URLs.
 
-The default YOLO model is cached on the local PC rather than beside footage on the share:
-`%LOCALAPPDATA%\CamReview\models` on Windows or
-`${XDG_CACHE_HOME:-~/.cache}/camreview/models` on Linux. An existing model in the current
-directory or an explicit `--model PATH` is still honored.
+Bare YOLO model names are always cached on the local PC rather than beside footage on the
+share: `%LOCALAPPDATA%\CamReview\models` on Windows or
+`${XDG_CACHE_HOME:-~/.cache}/camreview/models` on Linux. Override the central directory
+with `CAMREVIEW_MODEL_DIR`. A directory-qualified or absolute `--model PATH` is honored;
+for example, use `--model .\yolo26n.pt` to explicitly select a current-directory file.
 
 ## Commands
 

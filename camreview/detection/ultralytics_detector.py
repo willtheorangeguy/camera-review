@@ -20,10 +20,14 @@ class UltralyticsDetector(ObjectDetector):
         self.model: Any = None
         self.device = "cpu"
         self.device_name = "CPU"
-        self.name = f"Ultralytics YOLO ({model})"
+        self.resolved_model_path = self._resolved_model()
+        self.name = f"Ultralytics YOLO ({self.resolved_model_path})"
 
     @staticmethod
     def _cache_directory() -> Path:
+        override = os.environ.get("CAMREVIEW_MODEL_DIR")
+        if override:
+            return Path(override).expanduser()
         if os.name == "nt":
             root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
             return root / "CamReview" / "models"
@@ -32,9 +36,12 @@ class UltralyticsDetector(ObjectDetector):
 
     def _resolved_model(self) -> Path:
         configured = Path(self.model_path).expanduser()
-        if configured.is_file() or configured.is_absolute() or configured.parent != Path("."):
-            return configured
-        return self._cache_directory() / configured.name
+        is_bare_name = (
+            not configured.is_absolute()
+            and "/" not in self.model_path
+            and "\\" not in self.model_path
+        )
+        return self._cache_directory() / configured.name if is_bare_name else configured
 
     def load(self) -> None:
         try:
@@ -59,12 +66,12 @@ class UltralyticsDetector(ObjectDetector):
             self.device_name = str(torch.cuda.get_device_name(index))
         else:
             self.device_name = "CPU"
-        resolved_model = self._resolved_model()
         try:
-            self.model = YOLO(str(resolved_model))
+            self.model = YOLO(str(self.resolved_model_path))
         except Exception as exc:
-            raise DetectorUnavailableError(f"Could not load model {resolved_model}: {exc}") from exc
-        self.name = f"Ultralytics YOLO ({resolved_model})"
+            raise DetectorUnavailableError(
+                f"Could not load model {self.resolved_model_path}: {exc}"
+            ) from exc
 
     def detect(self, images: list[np.ndarray]) -> list[list[ObjectDetection]]:
         if self.model is None:

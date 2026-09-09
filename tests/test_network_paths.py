@@ -49,6 +49,7 @@ def test_default_model_uses_local_cache_not_recording_directory(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "yolo26n.pt").write_bytes(b"existing working-directory model")
     cache = tmp_path / "local-cache"
     if os.name == "nt":
         monkeypatch.setenv("LOCALAPPDATA", str(cache))
@@ -58,3 +59,15 @@ def test_default_model_uses_local_cache_not_recording_directory(
         expected = cache / "camreview" / "models" / "yolo26n.pt"
     detector = UltralyticsDetector("yolo26n.pt", "auto", 0.35)
     assert detector._resolved_model() == expected
+    assert str(expected) in detector.name
+
+
+def test_model_cache_override_and_explicit_path(tmp_path: Path, monkeypatch) -> None:
+    central = tmp_path / "central-models"
+    monkeypatch.setenv("CAMREVIEW_MODEL_DIR", str(central))
+    assert (
+        UltralyticsDetector("yolo26n.pt", "auto", 0.35).resolved_model_path
+        == central / "yolo26n.pt"
+    )
+    explicit = tmp_path / "custom" / "detector.pt"
+    assert UltralyticsDetector(str(explicit), "auto", 0.35).resolved_model_path == explicit
