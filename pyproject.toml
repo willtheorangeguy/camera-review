@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "camreview"
+version = "1.0.0"
+description = "Local, retrospective motion analysis for security-camera recordings"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "CamReview contributors"}]
+dependencies = [
+  "av>=12",
+  "numpy>=1.26",
+  "opencv-python-headless>=4.9",
+]
+
+[project.optional-dependencies]
+detect = ["ultralytics>=8.3"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.9", "mypy>=1.14"]
+
+[project.scripts]
+camreview = "camreview.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["camreview"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["integration: tests that invoke video codecs or optional models"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+check_untyped_defs = true
+

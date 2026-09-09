@@ -1,0 +1,26 @@
+[defaults]
+motion_fps = 4
+sensitivity = "medium"
+quiet_seconds = 1.5
+merge_gap = 2.0
+reset_gap = 10.0
+warmup = 3.0
+pre_roll = 2.0
+post_roll = 3.0
+scene_change_threshold = 0.60
+
+[classification]
+model = "yolo26n.pt"
+confidence = 0.35
+classify_fps = 2
+batch_size = 8
+device = "auto"
+
+[cameras.upstairs]
+mask = "masks/upstairs.png"
+sensitivity = "medium"
+
+[cameras.garage]
+mask = "masks/garage.png"
+sensitivity = "low"
+
