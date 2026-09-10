@@ -131,12 +131,14 @@ camreview daily /mnt/cameras/living/2026-08-12 \
   --report-dir /mnt/cameras/living/2026-08-12
 ```
 
-Authentication and mounting remain the operating system's responsibility. Reports use
-destination-side temporary files and same-directory atomic renames. Brief SMB open or
-sharing failures are retried, and unsupported network `fsync` operations degrade safely.
-Source copying does not require the share to permit timestamp changes. FFmpeg receives
-native argument-array paths, while fast concat extraction translates drive-letter and UNC
-paths into explicit file URLs.
+Authentication and mounting remain the operating system's responsibility. Recording paths
+are canonicalized before they are passed to FFmpeg/PyAV, so a relative path under a Windows
+mapped drive is decoded through its absolute UNC path. Brief SMB failures during open or
+decoding are retried; a mid-stream retry resumes after the last emitted sample without
+duplicating frames. Reports use destination-side temporary files and same-directory atomic
+renames, and unsupported network `fsync` operations degrade safely. Source copying does not
+require the share to permit timestamp changes. Fast concat extraction translates
+drive-letter and UNC paths into explicit file URLs.
 
 Bare YOLO model names are always cached on the local PC rather than beside footage on the
 share: `%LOCALAPPDATA%\CamReview\models` on Windows or

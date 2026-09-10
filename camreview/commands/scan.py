@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import load_config, resolve_settings
-from ..decoding import PyAVDecoder
+from ..decoding import PyAVDecoder, RecordingDecodeError
 from ..detection import UltralyticsDetector, classify_events
 from ..errors import NoRecordingsError, StrictRecordingError
 from ..extraction import extract_events, extract_source_files
@@ -215,13 +215,31 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
                     raise StrictRecordingError(
                         f"Failed processing {recording.relative_path}: {exc}"
                     ) from exc
-                issues.append(ProcessingIssue(recording.relative_path, str(exc), recording.start))
+                issue_kind = (
+                    "network_or_filesystem_error"
+                    if isinstance(exc, RecordingDecodeError) and exc.retryable
+                    else "corrupt_or_unreadable"
+                )
+                issues.append(
+                    ProcessingIssue(
+                        recording.relative_path,
+                        str(exc),
+                        recording.start,
+                        issue_kind,
+                    )
+                )
                 performance.files_skipped += 1
+                failed_from = recording.start
+                reason = "recording could not be processed"
+                if isinstance(exc, RecordingDecodeError):
+                    reason += f" ({exc.stage} stage)"
+                    if exc.last_successful_seconds is not None:
+                        failed_from += timedelta(seconds=exc.last_successful_seconds)
                 gaps.append(
                     TimelineGap(
-                        recording.start,
+                        failed_from,
                         recording.end or recording.start + timedelta(seconds=60),
-                        "recording could not be processed",
+                        reason,
                     )
                 )
             previous_end = recording.end
@@ -238,7 +256,12 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
     for event in events:
         event.sources = source_segments_for_window(recordings, event.start, event.end)
     performance.files_skipped = len(
-        [issue for issue in issues if issue.kind in {"unsettled_file", "corrupt_or_unreadable"}]
+        [
+            issue
+            for issue in issues
+            if issue.kind
+            in {"unsettled_file", "corrupt_or_unreadable", "network_or_filesystem_error"}
+        ]
     )
     performance.wall_seconds = time.monotonic() - started
     report_dir = request.report_dir or Path.cwd()

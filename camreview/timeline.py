@@ -28,6 +28,11 @@ def discover_recordings(
     settle_seconds: float = 0,
     now_timestamp: float | None = None,
 ) -> DiscoveryResult:
+    # Resolve once before enumerating.  In particular, this turns a relative
+    # filename under a Windows mapped drive into an absolute (usually UNC)
+    # filename.  Native libraries such as FFmpeg do not reliably inherit
+    # PowerShell's per-drive/UNC working-directory semantics.
+    root = root.expanduser().resolve()
     if not root.is_dir():
         raise ConfigurationError(f"Recording directory does not exist: {root}")
     candidates = root.rglob("*") if recursive else root.glob("*")

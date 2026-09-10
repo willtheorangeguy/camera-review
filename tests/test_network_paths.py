@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from camreview import filesystem
 from camreview.detection.ultralytics_detector import UltralyticsDetector
 from camreview.extraction.ffmpeg import _ffmpeg_file_url
+from camreview.timeline import discover_recordings
 
 
 def test_ffmpeg_urls_cover_mapped_unc_and_linux_paths() -> None:
@@ -22,6 +23,16 @@ def test_ffmpeg_urls_cover_mapped_unc_and_linux_paths() -> None:
         _ffmpeg_file_url(PurePosixPath("/mnt/cameras/living/clip.mkv"))
         == "/mnt/cameras/living/clip.mkv"
     )
+
+
+def test_discovery_canonicalizes_relative_recording_paths(tmp_path: Path, monkeypatch) -> None:
+    recording = tmp_path / "living_2026-08-12_03-33-00.mkv"
+    recording.touch()
+    monkeypatch.chdir(tmp_path.parent)
+    result = discover_recordings(Path(tmp_path.name))
+    assert result.recordings[0].path == recording.resolve()
+    assert result.recordings[0].source_root == tmp_path.resolve()
+    assert result.recordings[0].relative_path == recording.name
 
 
 def test_atomic_replace_retries_transient_share_error(tmp_path: Path, monkeypatch) -> None:

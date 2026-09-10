@@ -35,12 +35,15 @@ def prepare_recordings(
     probe: bool = True,
     notify: Callable[[str], None] | None = None,
 ) -> tuple[list[RecordingFile], str, date, DiscoveryResult, list[ProcessingIssue]]:
+    resolved_root = root.expanduser().resolve()
     if notify:
         notify(
-            f"Discovering video files in {root.resolve()} "
+            f"Discovering video files in {resolved_root} "
             f"({'recursive' if recursive else 'top-level only'})..."
         )
-    discovered = discover_recordings(root, recursive=recursive, settle_seconds=settle_seconds)
+    discovered = discover_recordings(
+        resolved_root, recursive=recursive, settle_seconds=settle_seconds
+    )
     if notify:
         notify(
             f"Discovery complete: {len(discovered.recordings):,} recognized, "
@@ -67,7 +70,7 @@ def prepare_recordings(
         )
     issues = [
         ProcessingIssue(
-            file=path.relative_to(root).as_posix(),
+            file=path.relative_to(resolved_root).as_posix(),
             error="filename does not match the supported camera timestamp format",
             kind="unrecognized_filename",
         )
@@ -75,7 +78,7 @@ def prepare_recordings(
     ]
     issues.extend(
         ProcessingIssue(
-            file=path.relative_to(root).as_posix(),
+            file=path.relative_to(resolved_root).as_posix(),
             error=f"file modified less than {settle_seconds:g} seconds ago",
             kind="unsettled_file",
         )
@@ -83,7 +86,11 @@ def prepare_recordings(
     )
     issues.extend(
         ProcessingIssue(
-            file=(path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)),
+            file=(
+                path.relative_to(resolved_root).as_posix()
+                if path.is_relative_to(resolved_root)
+                else str(path)
+            ),
             error=error,
             kind="network_or_filesystem_error",
         )
