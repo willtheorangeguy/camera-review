@@ -2001,7 +2001,7 @@ All FFmpeg calls must:
 Do not use:
 
 ```python
-shell=True
+shell = True
 ```
 
 unless there is an extremely compelling and documented reason.
