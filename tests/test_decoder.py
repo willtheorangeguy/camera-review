@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from camreview.decoding.pyav_decoder import PyAVDecoder, RecordingDecodeError
+from camreview.errors import DetectorUnavailableError
 from camreview.models import DecodedFrame, RecordingFile
 
 
@@ -116,13 +117,54 @@ def test_open_passes_an_absolute_path_to_pyav(recording, monkeypatch) -> None:
     opened: list[str] = []
     sentinel = object()
 
-    def fake_open(path: str):
+    def fake_open(path: str, **kwargs):
         opened.append(path)
         return sentinel
 
     monkeypatch.setattr("camreview.decoding.pyav_decoder.av.open", fake_open)
-    assert PyAVDecoder._open(recording) is sentinel
+    assert PyAVDecoder()._open(recording) is sentinel
     assert Path(opened[0]).is_absolute()
+
+
+def test_auto_hardware_selection_tries_backends_in_order(recording, monkeypatch) -> None:
+    decoder = PyAVDecoder("auto")
+    attempted: list[str] = []
+    monkeypatch.setattr(decoder, "_auto_hardware_candidates", lambda: ("cuda", "d3d11va"))
+
+    def probe_backend(_recording: RecordingFile, backend: str) -> None:
+        attempted.append(backend)
+        if backend == "cuda":
+            raise RuntimeError("CUDA unavailable")
+
+    monkeypatch.setattr(decoder, "_probe_hardware_backend", probe_backend)
+    decoder._select_hardware(recording)
+    assert attempted == ["cuda", "d3d11va"]
+    assert decoder.active_hwdecode == "d3d11va"
+    assert decoder.decoder_name == "d3d11va hardware acceleration"
+
+
+def test_auto_hardware_selection_safely_falls_back_to_cpu(recording, monkeypatch) -> None:
+    decoder = PyAVDecoder("auto")
+    monkeypatch.setattr(decoder, "_auto_hardware_candidates", lambda: ("cuda",))
+    monkeypatch.setattr(
+        decoder,
+        "_probe_hardware_backend",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("unavailable")),
+    )
+    decoder._select_hardware(recording)
+    assert decoder.active_hwdecode == "none"
+    assert decoder.decoder_name == "CPU (automatic hardware fallback)"
+
+
+def test_explicit_unavailable_hardware_decoder_fails(recording, monkeypatch) -> None:
+    decoder = PyAVDecoder("cuda")
+    monkeypatch.setattr(
+        decoder,
+        "_probe_hardware_backend",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("driver mismatch")),
+    )
+    with pytest.raises(DetectorUnavailableError, match="--hwdecode auto or none"):
+        decoder._select_hardware(recording)
 
 
 class CloseFailingContainer:

@@ -8,6 +8,8 @@ warmup = 3.0
 pre_roll = 2.0
 post_roll = 3.0
 scene_change_threshold = 0.60
+# Use "auto" to try hardware decoding, or "none" to force CPU decoding.
+hwdecode = "none"
 
 [classification]
 model = "yolo26n.pt"
@@ -23,4 +25,3 @@ sensitivity = "medium"
 [cameras.garage]
 mask = "masks/garage.png"
 sensitivity = "low"
-

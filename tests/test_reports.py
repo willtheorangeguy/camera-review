@@ -31,13 +31,20 @@ def test_report_round_trip_and_formats(tmp_path: Path) -> None:
         [event],
         [],
         [],
-        PerformanceStats(video_seconds=60, files_processed=1),
+        PerformanceStats(
+            video_seconds=60,
+            files_processed=1,
+            video_decoder="cuda hardware acceleration",
+        ),
     )
     paths = write_reports(report, tmp_path, {"json", "csv", "txt"})
     assert set(paths) == {"json", "csv", "txt"}
     loaded = load_report(paths["json"])
     assert loaded.events[0].start == event.start
     assert loaded.events[0].sources[0].file == event.sources[0].file
-    assert "CamReview Motion Report" in paths["txt"].read_text(encoding="utf-8")
+    assert loaded.performance.video_decoder == "cuda hardware acceleration"
+    text_report = paths["txt"].read_text(encoding="utf-8")
+    assert "CamReview Motion Report" in text_report
+    assert "Video decoder: cuda hardware acceleration" in text_report
     assert "event_id,camera,start" in paths["csv"].read_text(encoding="utf-8")
     assert not list(tmp_path.glob("*.tmp"))

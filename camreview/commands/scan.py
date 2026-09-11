@@ -10,7 +10,7 @@ from typing import Any
 from ..config import load_config, resolve_settings
 from ..decoding import PyAVDecoder, RecordingDecodeError
 from ..detection import UltralyticsDetector, classify_events
-from ..errors import NoRecordingsError, StrictRecordingError
+from ..errors import DetectorUnavailableError, NoRecordingsError, StrictRecordingError
 from ..extraction import extract_events, extract_source_files
 from ..models import (
     PerformanceStats,
@@ -124,6 +124,8 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
             info = decoder.probe(recording)
             recording.duration_seconds = info.duration_seconds
             usable.append(recording)
+        except DetectorUnavailableError:
+            raise
         except Exception as exc:
             if request.strict:
                 raise StrictRecordingError(
@@ -158,6 +160,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
         settings.trigger_frames, settings.quiet_seconds, settings.merge_gap
     )
     performance = PerformanceStats()
+    performance.video_decoder = decoder.decoder_name
     scene_changes = 0
     previous_end: datetime | None = None
     model_ready_at: datetime | None = None
@@ -169,6 +172,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
         print(
             f"Camera: {camera}\nDate: {recording_date.isoformat()}\n"
             f"Range: {range_label}\nFiles: {len(selected)}\n"
+            f"Video decoder: {decoder.decoder_name}\n"
         )
     try:
         for index, recording in enumerate(selected, 1):
@@ -207,6 +211,8 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
                     requested.start,
                     requested.end,
                 )
+            except DetectorUnavailableError:
+                raise
             except Exception as exc:
                 event_builder.break_continuity()
                 detector.reset()
@@ -263,6 +269,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
             in {"unsettled_file", "corrupt_or_unreadable", "network_or_filesystem_error"}
         ]
     )
+    performance.video_decoder = decoder.decoder_name
     performance.wall_seconds = time.monotonic() - started
     report_dir = request.report_dir or Path.cwd()
     report = ScanReport(
@@ -314,6 +321,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
         if not request.quiet:
             print(f"Device: {performance.device}")
         report.status = "complete"
+    performance.video_decoder = decoder.decoder_name
     performance.wall_seconds = time.monotonic() - started
     displayed = filter_events(events, request.only, request.exclude)
     if notify:
@@ -408,6 +416,7 @@ def print_completion(report: ScanReport, paths: dict[str, Path], extracted: list
         "\nScan complete.\n\n"
         f"Files processed:      {report.performance.files_processed}\n"
         f"Video scanned:        {report.performance.video_seconds:.1f}s\n"
+        f"Video decoder:        {report.performance.video_decoder or 'CPU'}\n"
         f"Motion events:        {len(report.events)}\n"
         f"Total motion:         {motion_seconds:.1f}s\n"
         f"Effective speed:      {report.performance.to_dict()['effective_realtime_speed']:.1f}x\n"

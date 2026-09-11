@@ -309,6 +309,7 @@ class PerformanceStats:
     files_processed: int = 0
     files_skipped: int = 0
     device: str | None = None
+    video_decoder: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -320,6 +321,7 @@ class PerformanceStats:
             "motion_frames_sampled": self.motion_frames,
             "classification_frames_processed": self.classification_frames,
             "device": self.device,
+            "video_decoder": self.video_decoder,
             "files_processed": self.files_processed,
             "files_skipped": self.files_skipped,
         }

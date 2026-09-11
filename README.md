@@ -105,6 +105,12 @@ Scan the entire day using motion detection only:
 camreview scan "D:\Cameras\upstairs\2026-08-12" --time all
 ```
 
+Use automatic hardware-accelerated video decoding when the machine supports it:
+
+```powershell
+camreview scan "D:\Cameras\upstairs\2026-08-12" --time all --hwdecode auto
+```
+
 By default, the current directory receives deterministic files such as:
 
 ```text
@@ -243,6 +249,26 @@ The default sampling rate is four samples per second. `--motion-fps 2` is faster
 miss very short movement; `--motion-fps 8` improves short-event sensitivity at higher CPU
 cost.
 
+## Hardware video decoding
+
+CPU decoding remains the default. `--hwdecode auto` (also spelled
+`--hardware-decode auto`) tests suitable backends for the current operating system and
+codec, then uses the first backend that can both decode and transfer a frame for OpenCV.
+If none work, automatic mode prints a warning and safely uses CPU decoding.
+
+An explicit backend fails with exit code 5 instead of silently using the CPU:
+
+```powershell
+camreview scan DAY --time all --hwdecode cuda
+camreview classify report.json --hwdecode cuda
+```
+
+Supported backend names are `cuda`, `d3d11va`, `d3d12va`, `dxva2`, `qsv`, `vaapi`,
+`videotoolbox`, and `vdpau`. Actual availability depends on the operating system, GPU,
+driver, FFmpeg/PyAV build, and recording codec. The selected decoder is printed at startup
+and stored as `performance.video_decoder` in the JSON report. Hardware decoding only
+offloads video decompression; OpenCV motion analysis still uses CPU-addressable frames.
+
 Sensitivity presets at the default analysis scale are:
 
 | Preset | Minimum changed ratio | Minimum contour | MOG2 variance threshold |
@@ -349,8 +375,8 @@ continuously monitor multiple cameras.
 - Accuracy depends on sampling rate, sensitivity, scene, and mask quality.
 - Classification identifies COCO classes, not individual people, faces, or individual pets.
 - Fast stream-copy extraction is keyframe-inexact; accurate cuts require re-encoding.
-- Initial GPU video decoding is not implemented. `--hwdecode cuda` currently warns and
-  safely uses CPU; NVIDIA acceleration is used for YOLO when available.
+- Some hardware/codec combinations cannot transfer decoded frames to OpenCV; use
+  `--hwdecode auto` for a tested fallback or `--hwdecode none` to force CPU decoding.
 
 ## Development
 

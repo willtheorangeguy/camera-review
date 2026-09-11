@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import errno
 import logging
+import platform
 import time
 from collections.abc import Iterator
+from contextlib import suppress
 from datetime import timedelta
 from fractions import Fraction
 from pathlib import Path
 
 import av
+from av.codec.hwaccel import HWAccel
 
+from ..errors import DetectorUnavailableError
 from ..models import DecodedFrame, RecordingFile
 from .base import VideoDecoder, VideoInfo
 
@@ -34,6 +38,17 @@ if hasattr(errno, "ESTALE"):
 
 _TRANSIENT_WINERRORS = {5, 21, 32, 33, 53, 59, 64, 67, 121, 1231, 1232}
 _DECODE_EXCEPTIONS = (OSError, ValueError, av.error.FFmpegError)
+
+HARDWARE_DECODERS = {
+    "cuda",
+    "d3d11va",
+    "d3d12va",
+    "dxva2",
+    "qsv",
+    "vaapi",
+    "videotoolbox",
+    "vdpau",
+}
 
 
 class RecordingDecodeError(RuntimeError):
@@ -78,8 +93,27 @@ class PyAVDecoder(VideoDecoder):
         self.hwdecode = hwdecode
         self.read_retries = max(0, read_retries)
         self._seek_warning_shown = False
-        if hwdecode == "cuda":
-            LOG.warning("PyAV CUDA decoding is not enabled in v1; using CPU decoding")
+        self.active_hwdecode: str | None = "none" if hwdecode == "none" else None
+        self._auto_fell_back = False
+
+    @property
+    def decoder_name(self) -> str:
+        if self.active_hwdecode is None:
+            return "hardware selection pending"
+        if self.active_hwdecode == "none":
+            return "CPU (automatic hardware fallback)" if self._auto_fell_back else "CPU"
+        return f"{self.active_hwdecode} hardware acceleration"
+
+    @staticmethod
+    def _auto_hardware_candidates() -> tuple[str, ...]:
+        system = platform.system()
+        if system == "Windows":
+            return ("cuda", "d3d11va", "d3d12va", "dxva2", "qsv")
+        if system == "Darwin":
+            return ("videotoolbox",)
+        if system == "Linux":
+            return ("cuda", "vaapi", "qsv", "vdpau")
+        return ("cuda", "vaapi", "qsv")
 
     @staticmethod
     def _video_stream(container: av.container.InputContainer) -> av.video.stream.VideoStream:
@@ -92,13 +126,70 @@ class PyAVDecoder(VideoDecoder):
         """Return an absolute native-library-safe path, including on mapped drives."""
         return recording.path.expanduser().resolve()
 
-    @classmethod
-    def _open(cls, recording: RecordingFile) -> av.container.InputContainer:
+    @staticmethod
+    def _open_candidate(path: Path, backend: str) -> av.container.InputContainer:
+        if backend == "none":
+            return av.open(str(path))
+        return av.open(
+            str(path),
+            hwaccel=HWAccel(backend, allow_software_fallback=False),
+        )
+
+    def _probe_hardware_backend(self, recording: RecordingFile, backend: str) -> None:
+        """Prove that a backend can decode and transfer one frame for this codec."""
+        container: av.container.InputContainer | None = None
+        try:
+            container = self._open_candidate(self._resolved_path(recording), backend)
+            stream = self._video_stream(container)
+            frame = next(container.decode(stream), None)
+            if frame is None:
+                raise RuntimeError("recording contains no decodable video frame")
+            if not stream.codec_context.is_hwaccel:
+                raise RuntimeError("decoder opened without hardware acceleration")
+            # CamReview needs CPU-addressable BGR frames for OpenCV. Some
+            # accelerators can decode but cannot transfer their frames.
+            frame.to_ndarray(format="bgr24")
+        finally:
+            if container is not None:
+                with suppress(OSError, av.error.FFmpegError):
+                    container.close()
+
+    def _select_hardware(self, recording: RecordingFile) -> None:
+        if self.active_hwdecode is not None:
+            return
+        candidates = (
+            self._auto_hardware_candidates() if self.hwdecode == "auto" else (self.hwdecode,)
+        )
+        failures: list[str] = []
+        for backend in candidates:
+            try:
+                self._probe_hardware_backend(recording, backend)
+            except Exception as exc:
+                failures.append(f"{backend}: {exc}")
+                LOG.debug("Hardware decoder %s was unavailable: %s", backend, exc)
+                continue
+            self.active_hwdecode = backend
+            LOG.info("Selected %s hardware video decoding", backend)
+            return
+        if self.hwdecode == "auto":
+            self.active_hwdecode = "none"
+            self._auto_fell_back = True
+            LOG.warning("No compatible hardware video decoder was available; using CPU decoding")
+            return
+        detail = failures[0] if failures else f"{self.hwdecode}: unavailable"
+        raise DetectorUnavailableError(
+            f"Hardware video decoder {self.hwdecode!r} is unavailable for "
+            f"{recording.relative_path} ({detail}). Use --hwdecode auto or none."
+        )
+
+    def _open(self, recording: RecordingFile) -> av.container.InputContainer:
         """Open a recording, retrying brief SMB/network interruptions."""
-        path = cls._resolved_path(recording)
+        self._select_hardware(recording)
+        path = self._resolved_path(recording)
+        backend = self.active_hwdecode or "none"
         for attempt in range(3):
             try:
-                return av.open(str(path))
+                return self._open_candidate(path, backend)
             except (OSError, av.error.FFmpegError):
                 if attempt == 2:
                     raise
@@ -223,6 +314,28 @@ class PyAVDecoder(VideoDecoder):
                         )
                         self._seek_warning_shown = True
                     use_seek = False
+                    continue
+
+                # An automatically selected backend may support the first
+                # recording's codec/profile but not a later one. Fall back once
+                # to CPU before treating that recording as unreadable.
+                if (
+                    self.hwdecode == "auto"
+                    and self.active_hwdecode not in {None, "none"}
+                    and not failure.retryable
+                    and not yielded_this_attempt
+                    and last_successful is None
+                ):
+                    LOG.warning(
+                        "%s hardware decoding failed for %s; retrying this and "
+                        "subsequent recordings on CPU: %s",
+                        self.active_hwdecode,
+                        recording.relative_path,
+                        failure.cause,
+                    )
+                    self.active_hwdecode = "none"
+                    self._auto_fell_back = True
+                    use_seek = resume_at > 1.0
                     continue
 
                 if not failure.retryable or retries >= self.read_retries:

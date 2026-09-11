@@ -62,6 +62,7 @@ def render_text(report: ScanReport, events: Iterable[MotionEvent] | None = None)
         f"Files scanned: {report.performance.files_processed:,}",
         f"Files skipped: {report.performance.files_skipped:,}",
         f"Video duration scanned: {_duration(report.performance.video_seconds)}",
+        f"Video decoder: {report.performance.video_decoder or 'CPU'}",
         f"Motion events: {len(selected):,}",
         f"Total motion time: {_duration(motion_seconds)}",
         f"Scene changes suppressed: {report.scene_changes:,}",
@@ -226,6 +227,7 @@ def load_report(path: Path) -> ScanReport:
         ),
         files_skipped=int(performance_raw.get("files_skipped", summary.get("files_skipped", 0))),
         device=performance_raw.get("device"),
+        video_decoder=performance_raw.get("video_decoder"),
     )
     return ScanReport(
         camera=str(value["camera"]),

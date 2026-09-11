@@ -5,6 +5,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+from .decoding import HARDWARE_DECODERS
 from .errors import ConfigurationError
 from .models import ScanSettings
 
@@ -68,8 +69,9 @@ def validate_settings(settings: ScanSettings) -> None:
             raise ConfigurationError(f"{name.replace('_', '-')} must be greater than zero")
     if settings.sensitivity not in {"low", "medium", "high"}:
         raise ConfigurationError("sensitivity must be low, medium, or high")
-    if settings.hwdecode not in {"auto", "none", "cuda"}:
-        raise ConfigurationError("hwdecode must be auto, none, or cuda")
+    valid_hwdecode = {"auto", "none", *HARDWARE_DECODERS}
+    if settings.hwdecode not in valid_hwdecode:
+        raise ConfigurationError(f"hwdecode must be one of: {', '.join(sorted(valid_hwdecode))}")
     for name, value in {
         "scene_change_threshold": settings.scene_change_threshold,
         "confidence": settings.confidence,

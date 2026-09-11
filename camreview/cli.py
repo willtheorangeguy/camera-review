@@ -11,6 +11,7 @@ from .commands.classify import run_classify
 from .commands.extract import run_extract
 from .commands.inspect import run_inspect
 from .commands.scan import print_completion, request_from_args, run_scan
+from .decoding import HARDWARE_DECODERS
 from .errors import (
     CamReviewError,
     ConfigurationError,
@@ -88,7 +89,13 @@ def _add_scan_options(parser: argparse.ArgumentParser, *, daily: bool = False) -
     parser.add_argument("--scene-change-threshold", type=_probability, default=None)
     parser.add_argument("--mask", type=_path, default=None, help="white=analyze, black=ignore")
     parser.add_argument("--analysis-width", type=int, default=None)
-    parser.add_argument("--hwdecode", choices=["auto", "none", "cuda"], default=None)
+    parser.add_argument(
+        "--hwdecode",
+        "--hardware-decode",
+        choices=["auto", "none", *sorted(HARDWARE_DECODERS)],
+        default=None,
+        help="video decoder acceleration backend (default: none)",
+    )
     parser.add_argument("--classify", action="store_true", default=None)
     parser.add_argument("--classify-fps", type=_positive_float, default=None)
     parser.add_argument("--batch-size", type=int, default=None)
@@ -134,6 +141,13 @@ def build_parser() -> argparse.ArgumentParser:
     classify.add_argument("--confidence", type=_probability)
     classify.add_argument("--classify-fps", type=_positive_float)
     classify.add_argument("--batch-size", type=int)
+    classify.add_argument(
+        "--hwdecode",
+        "--hardware-decode",
+        choices=["auto", "none", *sorted(HARDWARE_DECODERS)],
+        default=None,
+        help="video decoder acceleration backend",
+    )
     classify.add_argument("--motion-object-overlap", type=_probability)
     classify.add_argument("--only")
     classify.add_argument("--exclude")

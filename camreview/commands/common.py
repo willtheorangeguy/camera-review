@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from ..decoding.base import VideoDecoder
-from ..errors import NoRecordingsError, StrictRecordingError
+from ..errors import DetectorUnavailableError, NoRecordingsError, StrictRecordingError
 from ..models import MotionEvent, ProcessingIssue, RecordingFile
 from ..timeline import DiscoveryResult, discover_recordings, select_camera_and_date
 
@@ -109,6 +109,8 @@ def prepare_recordings(
             info = decoder.probe(recording)
             recording.duration_seconds = info.duration_seconds
             usable.append(recording)
+        except DetectorUnavailableError:
+            raise
         except Exception as exc:
             if strict:
                 raise StrictRecordingError(

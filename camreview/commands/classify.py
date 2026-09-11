@@ -17,7 +17,8 @@ def run_classify(args: Any) -> tuple[Path, str]:
         raise ConfigurationError("Use either --in-place or --output, not both")
     report = load_report(args.report)
     source_root = args.source_root or report.source_root
-    decoder = PyAVDecoder()
+    requested_hwdecode = args.hwdecode or report.settings.hwdecode
+    decoder = PyAVDecoder(requested_hwdecode)
     recordings, _, _, _, issues = prepare_recordings(
         source_root,
         decoder,
@@ -30,6 +31,7 @@ def run_classify(args: Any) -> tuple[Path, str]:
     )
     report.issues.extend(issues)
     settings = report.settings
+    settings.hwdecode = requested_hwdecode
     for name in (
         "model",
         "device",
@@ -53,6 +55,7 @@ def run_classify(args: Any) -> tuple[Path, str]:
         report.performance,
         notify=lambda message: print(message, flush=True),
     )
+    report.performance.video_decoder = decoder.decoder_name
     report.source_root = source_root.resolve()
     report.created_at = datetime.now()
     if args.in_place:
