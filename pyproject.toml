@@ -10,11 +10,28 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "CamReview contributors"}]
+keywords = ["camera", "motion-detection", "security-camera", "video"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Video",
+]
 dependencies = [
   "av>=16",
   "numpy>=1.26",
   "opencv-python-headless>=4.9",
 ]
+
+[project.urls]
+Documentation = "https://williamvdg.me/camera-review/"
+Issues = "https://github.com/willtheorangeguy/camera-review/issues"
+Repository = "https://github.com/willtheorangeguy/camera-review"
 
 [project.optional-dependencies]
 detect = ["ultralytics>=8.3"]

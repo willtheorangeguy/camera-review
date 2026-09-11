@@ -14,9 +14,9 @@ The base package installs PyAV, NumPy, and headless OpenCV. PyAV handles inspect
 scanning without a standalone `ffmpeg` executable. Source-mode extraction also works without
 it because that mode copies files.
 
-## Install from source
+## Install from PyPI
 
-The supported installation path is an editable install from a clone.
+Install the released package into an isolated environment.
 
 === "Windows"
 
@@ -24,7 +24,7 @@ The supported installation path is an editable install from a clone.
     py -3.12 -m venv .venv
     .venv\Scripts\Activate.ps1
     python -m pip install --upgrade pip
-    python -m pip install -e .
+    python -m pip install camreview
     ```
 
 === "macOS / Linux"
@@ -33,11 +33,21 @@ The supported installation path is an editable install from a clone.
     python3 -m venv .venv
     source .venv/bin/activate
     python -m pip install --upgrade pip
-    python -m pip install -e .
+    python -m pip install camreview
     ```
 
-CamReview isn't currently published to the Python Package Index and has no standalone binary
-or container image.
+CamReview has no standalone binary or container image.
+
+## Install from source
+
+Clone the repository and use an editable install when developing or testing an unreleased
+revision:
+
+```bash
+git clone https://github.com/willtheorangeguy/camera-review.git
+cd camera-review
+python -m pip install -e .
+```
 
 ## Install FFmpeg
 
@@ -68,7 +78,7 @@ build includes it when accurate extraction fails.
 Install the detection dependency group on the machine that runs YOLO:
 
 ```bash
-python -m pip install -e ".[detect]"
+python -m pip install "camreview[detect]"
 ```
 
 The base install doesn't import PyTorch or initialize CUDA. For NVIDIA acceleration, install
@@ -115,15 +125,15 @@ python -m camreview --version
 
 ## Upgrade
 
-Pull the desired repository revision and reinstall so dependency and entry-point metadata are
-refreshed:
+Upgrade a PyPI installation with:
 
 ```bash
-git pull --ff-only
-python -m pip install --upgrade -e .
+python -m pip install --upgrade camreview
 ```
 
-Install `.[detect]` or `.[dev]` again when that environment uses the corresponding extra.
+For an editable source installation, pull the desired revision and reinstall with
+`python -m pip install --upgrade -e .`. Install `.[detect]` or `.[dev]` again when that
+environment uses the corresponding extra.
 
 ## Uninstall
 

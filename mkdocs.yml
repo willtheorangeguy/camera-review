@@ -28,6 +28,7 @@ nav:
       - Architecture: architecture.md
       - Development guide: development.md
       - Testing: testing.md
+      - CI/CD: ci-cd.md
       - Roadmap and limitations: roadmap.md
   - About:
       - License: license.md

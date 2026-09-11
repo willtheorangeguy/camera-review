@@ -17,10 +17,10 @@ NVR, service, or database.
 
 ## Quick start
 
-From a clone, install CamReview and scan one directory of correctly named recordings:
+Install CamReview and scan one directory of correctly named recordings:
 
 ```bash
-python -m pip install -e .
+python -m pip install camreview
 camreview scan /recordings/garage/2026-08-12 --time all
 ```
 

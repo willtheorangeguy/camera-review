@@ -9,6 +9,7 @@
   <img alt="GitHub Issues" src="https://img.shields.io/github/issues/willtheorangeguy/camera-review">
   <img alt="GitHub Pull Requests" src="https://img.shields.io/github/issues-pr/willtheorangeguy/camera-review">
   <img alt="License" src="https://img.shields.io/github/license/willtheorangeguy/camera-review">
+  <img alt="PyPI Version" src="https://img.shields.io/pypi/v/camreview">
 </div>
 
 <!-- Nav -->
@@ -42,11 +43,10 @@ and the configured model is not already cached.
 
 ## Installation
 
-Python 3.11 or newer is required. From a clone of this repository:
+Python 3.11 or newer is required:
 
 ```bash
-python -m venv .venv
-python -m pip install -e .
+python -m pip install camreview
 ```
 
 Activate the environment using the command for your shell. FFmpeg is additionally required

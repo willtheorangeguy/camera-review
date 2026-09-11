@@ -24,14 +24,14 @@ start time; filesystem timestamps are ignored.
 
 ## Install
 
-Create an isolated environment from the repository root and install the package:
+Create an isolated environment and install the package from PyPI:
 
 === "Windows"
 
     ```powershell
     py -3.12 -m venv .venv
     .venv\Scripts\Activate.ps1
-    python -m pip install -e .
+    python -m pip install camreview
     ```
 
 === "macOS / Linux"
@@ -39,7 +39,7 @@ Create an isolated environment from the repository root and install the package:
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
-    python -m pip install -e .
+    python -m pip install camreview
     ```
 
 See [Installation](installation.md) for the detection extra, development tools, upgrading,
