@@ -6,6 +6,7 @@
 
 <!-- Badges -->
 <div align="center">
+  <a href="https://github.com/willtheorangeguy/camera-review/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/willtheorangeguy/camera-review/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="GitHub Issues" src="https://img.shields.io/github/issues/willtheorangeguy/camera-review">
   <img alt="GitHub Pull Requests" src="https://img.shields.io/github/issues-pr/willtheorangeguy/camera-review">
   <img alt="License" src="https://img.shields.io/github/license/willtheorangeguy/camera-review">
