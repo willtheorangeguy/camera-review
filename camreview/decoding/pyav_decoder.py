@@ -242,6 +242,23 @@ class PyAVDecoder(VideoDecoder):
                     duration = float(stream.duration * stream.time_base)
                 elif container.duration is not None:
                     duration = float(container.duration / av.time_base)
+                    # Some segmented containers retain timestamps from the
+                    # original continuous stream. For those files FFmpeg may
+                    # expose ``container.duration`` as the final timestamp,
+                    # rather than the span covered by this individual file.
+                    # Normalize it to the same zero-based timeline used by
+                    # ``iter_frames`` below.
+                    origin = (
+                        float(container.start_time / av.time_base)
+                        if container.start_time is not None
+                        else (
+                            float(stream.start_time * stream.time_base)
+                            if stream.start_time is not None and stream.time_base is not None
+                            else 0.0
+                        )
+                    )
+                    if origin > 0:
+                        duration -= origin
                 if duration is None or duration <= 0:
                     raise ValueError("video duration is unavailable or invalid")
                 fps = float(stream.average_rate) if stream.average_rate else None
