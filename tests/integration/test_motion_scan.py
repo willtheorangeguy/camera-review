@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import numpy as np
 import pytest
 
 from camreview.commands.scan import ScanRequest, run_scan
+from camreview.decoding.pyav_decoder import PyAVDecoder
 from camreview.errors import DetectorUnavailableError
 
 
@@ -92,6 +94,36 @@ def test_static_video_has_no_events_and_reports_preparation_progress(
 
 
 @pytest.mark.integration
+def test_report_duration_uses_decoded_video_when_metadata_is_inflated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    video = tmp_path / "cam_2026-08-12_03-33-00.mkv"
+    _make_video(video, "null")
+    original_probe = PyAVDecoder.probe
+
+    def inflated_probe(self: PyAVDecoder, recording):
+        info = original_probe(self, recording)
+        return replace(info, duration_seconds=20_000)
+
+    monkeypatch.setattr(PyAVDecoder, "probe", inflated_probe)
+    report, paths, _ = run_scan(
+        ScanRequest(
+            tmp_path,
+            time_spec="all",
+            report_dir=tmp_path / "reports",
+            report_formats={"json", "txt"},
+            quiet=True,
+        )
+    )
+
+    assert report.performance.video_seconds == pytest.approx(8.0, abs=0.3)
+    assert report.gaps == []
+    assert "Video duration scanned: 00:00:08" in paths["txt"].read_text(encoding="utf-8")
+    summary = json.loads(paths["json"].read_text(encoding="utf-8"))["summary"]
+    assert summary["seconds_scanned"] == pytest.approx(8.0, abs=0.3)
+
+
+@pytest.mark.integration
 def test_moving_rectangle_creates_timestamped_event(tmp_path: Path) -> None:
     video = tmp_path / "cam_2026-08-12_03-33-00.avi"
     _make_moving_video(video)
@@ -115,9 +147,20 @@ def test_moving_rectangle_creates_timestamped_event(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_motion_event_crosses_file_boundary(tmp_path: Path) -> None:
+@pytest.mark.parametrize("inflated_metadata", [False, True])
+def test_motion_event_crosses_file_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, inflated_metadata: bool
+) -> None:
     _make_cross_file_video(tmp_path / "cam_2026-08-12_03-33-00.avi", 0)
     _make_cross_file_video(tmp_path / "cam_2026-08-12_03-33-04.avi", 1)
+    if inflated_metadata:
+        original_probe = PyAVDecoder.probe
+
+        def inflated_probe(self: PyAVDecoder, recording):
+            info = original_probe(self, recording)
+            return replace(info, duration_seconds=20_000)
+
+        monkeypatch.setattr(PyAVDecoder, "probe", inflated_probe)
     report, _, _ = run_scan(
         ScanRequest(
             tmp_path,
@@ -130,6 +173,8 @@ def test_motion_event_crosses_file_boundary(tmp_path: Path) -> None:
     )
     assert len(report.events) == 1
     assert len(report.events[0].sources) == 2
+    assert report.gaps == []
+    assert report.performance.video_seconds == pytest.approx(8.0, abs=0.5)
     boundary = datetime(2026, 8, 12, 3, 33, 4)
     assert report.events[0].start < boundary < report.events[0].end
 

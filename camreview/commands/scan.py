@@ -154,7 +154,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
     ]
     if not selected:
         raise NoRecordingsError("No recordings overlap the requested time range")
-    gaps = [*detect_gaps(recordings), *unprocessed_gaps]
+    gaps = list(unprocessed_gaps)
     detector = MOG2MotionDetector(settings)
     event_builder = EventBuilder(
         settings.trigger_frames, settings.quiet_seconds, settings.merge_gap
@@ -182,6 +182,9 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
                     event_builder.break_continuity()
                     detector.reset()
                     model_ready_at = None
+            first_frame_seconds: float | None = None
+            last_frame_seconds: float | None = None
+            last_frame_interval = 1.0 / settings.motion_fps
             try:
                 for frame in decoder.iter_frames(
                     recording,
@@ -192,6 +195,11 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
                         else None
                     ),
                 ):
+                    if first_frame_seconds is None:
+                        first_frame_seconds = frame.relative_seconds
+                    if last_frame_seconds is not None:
+                        last_frame_interval = frame.relative_seconds - last_frame_seconds
+                    last_frame_seconds = frame.relative_seconds
                     if model_ready_at is None:
                         model_ready_at = frame.absolute_datetime + timedelta(
                             seconds=settings.warmup
@@ -205,12 +213,15 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
                     if requested.contains(frame.absolute_datetime):
                         event_builder.process(sample)
                 performance.files_processed += 1
-                performance.video_seconds += _duration_in_range(
-                    recording.start,
-                    recording.duration_seconds or 0.0,
-                    requested.start,
-                    requested.end,
-                )
+                if first_frame_seconds is not None and last_frame_seconds is not None:
+                    decoded_duration = last_frame_seconds + last_frame_interval
+                    recording.duration_seconds = decoded_duration
+                    performance.video_seconds += _duration_in_range(
+                        recording.start + timedelta(seconds=first_frame_seconds),
+                        decoded_duration - first_frame_seconds,
+                        requested.start,
+                        requested.end,
+                    )
             except DetectorUnavailableError:
                 raise
             except Exception as exc:
@@ -261,6 +272,7 @@ def run_scan(request: ScanRequest) -> tuple[ScanReport, dict[str, Path], list[Pa
     events = event_builder.finish(camera)
     for event in events:
         event.sources = source_segments_for_window(recordings, event.start, event.end)
+    gaps = [*detect_gaps(recordings), *gaps]
     performance.files_skipped = len(
         [
             issue

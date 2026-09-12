@@ -72,7 +72,8 @@ The settings object records the effective values, not merely those supplied by t
 
 `summary` contains `files_scanned`, `files_skipped`, `seconds_scanned`, `motion_events`,
 `motion_seconds`, `scene_changes`, and `timeline_gaps`. Counts reflect the full JSON event
-set, not filtered CSV or text views.
+set, not filtered CSV or text views. Video seconds are measured from decoded frames rather
+than recording duration metadata.
 
 `performance` contains `wall_clock_seconds`, `video_seconds_analyzed`,
 `effective_realtime_speed`, `motion_frames_sampled`, `classification_frames_processed`,
