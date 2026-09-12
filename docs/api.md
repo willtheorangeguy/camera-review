@@ -15,7 +15,7 @@ camreview --version
 ```
 
 ```text
-CamReview 1.0.0
+CamReview 1.0.1
 ```
 
 ## `inspect`

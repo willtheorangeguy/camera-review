@@ -20,7 +20,7 @@ and source archive through a GitHub Actions artifact.
 ## Release contract
 
 The GitHub release tag must equal the version in `pyproject.toml`, with an optional leading
-`v`. For version `1.0.0`, publish a release tagged `v1.0.0` or `1.0.0`. A mismatch fails before
+`v`. For version `1.0.1`, publish a release tagged `v1.0.1` or `1.0.1`. A mismatch fails before
 dependencies are installed or artifacts are uploaded.
 
 The build job runs this sequence on Python 3.12:

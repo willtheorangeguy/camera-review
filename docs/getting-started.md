@@ -54,7 +54,7 @@ and removal.
     ```
 
     ```text
-    CamReview 1.0.0
+    CamReview 1.0.1
     ```
 
 2. Inspect filenames and inferred gaps without decoding video. Replace the path with a real

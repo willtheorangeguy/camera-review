@@ -114,7 +114,7 @@ camreview --version
 ```
 
 ```text
-CamReview 1.0.0
+CamReview 1.0.1
 ```
 
 If the scripts directory isn't on `PATH`, the module entry point provides the same CLI:
