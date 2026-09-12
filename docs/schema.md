@@ -136,10 +136,9 @@ CSV has one row per displayed event with columns:
 | `categories` | Semicolon-separated broad categories |
 | `raw_objects` | Semicolon-separated moving detector class names |
 | `max_confidence` | Highest moving-object confidence, if classified |
-| `source_files` | Semicolon-separated source segment filenames |
 
 ## Text projection
 
 Text begins with run identity, status, summary statistics, missing/unprocessed intervals,
-and warnings. Its event blocks show local times, duration, categories, and source-relative
-spans. It is intended for reading, not round-trip processing; use JSON as machine input.
+and warnings. Its event blocks show local times, duration, and categories. It is intended
+for reading, not round-trip processing; use JSON as machine input.

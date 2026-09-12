@@ -46,5 +46,10 @@ def test_report_round_trip_and_formats(tmp_path: Path) -> None:
     text_report = paths["txt"].read_text(encoding="utf-8")
     assert "CamReview Motion Report" in text_report
     assert "Video decoder: cuda hardware acceleration" in text_report
-    assert "event_id,camera,start" in paths["csv"].read_text(encoding="utf-8")
+    assert "Sources:" not in text_report
+    assert event.sources[0].file not in text_report
+    csv_report = paths["csv"].read_text(encoding="utf-8")
+    assert "event_id,camera,start" in csv_report
+    assert "source_files" not in csv_report
+    assert event.sources[0].file not in csv_report
     assert not list(tmp_path.glob("*.tmp"))

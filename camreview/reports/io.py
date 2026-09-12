@@ -87,14 +87,8 @@ def render_text(report: ScanReport, events: Iterable[MotionEvent] | None = None)
                 f"{event.start:%H:%M:%S.%f}"[:-3] + " - " + f"{event.end:%H:%M:%S.%f}"[:-3],
                 f"Duration: {event.duration_seconds:.2f} sec",
                 f"Classification: {_classification_text(event)}",
-                "Sources:",
             ]
         )
-        for source in event.sources:
-            lines.append(
-                f"  {source.file}  {_relative(source.relative_start)} - "
-                f"{_relative(source.relative_end)}"
-            )
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -104,11 +98,6 @@ def _duration(seconds: float) -> str:
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-
-def _relative(seconds: float) -> str:
-    minutes, second = divmod(max(0.0, seconds), 60)
-    return f"{int(minutes):02d}:{second:06.3f}"
 
 
 def render_csv(report: ScanReport, events: Iterable[MotionEvent] | None = None) -> str:
@@ -127,7 +116,6 @@ def render_csv(report: ScanReport, events: Iterable[MotionEvent] | None = None) 
             "categories",
             "raw_objects",
             "max_confidence",
-            "source_files",
         ],
     )
     writer.writeheader()
@@ -144,7 +132,6 @@ def render_csv(report: ScanReport, events: Iterable[MotionEvent] | None = None) 
                 "categories": ";".join(classification.categories) if classification else "",
                 "raw_objects": ";".join(item.class_name for item in objects),
                 "max_confidence": max((item.max_confidence for item in objects), default=""),
-                "source_files": ";".join(item.file for item in event.sources),
             }
         )
     return output.getvalue()
